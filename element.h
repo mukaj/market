@@ -3,11 +3,10 @@
 
 #include <string>
 
-// FIX: WE NEED TO CHANGE THE CLASS BECAUSE IF THE BARCODE STARTS WITH 0 IT WILL GET COMPLETELY IGNORED
 class element {
 public:
-	~element();
-	element();
+	element() {};
+	~element() {};
 	element(const std::string & name, const unsigned int & cost);
 	unsigned int cost() const;
 	const std::string & name() const;
@@ -17,10 +16,6 @@ private:
 	std::string name_;
 	unsigned int cost_;
 };
-
-element::~element() {}
-
-element::element() {}
 
 element::element(const std::string & name, const unsigned int & cost) : name_(name), cost_(cost) {}
 

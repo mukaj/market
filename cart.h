@@ -3,23 +3,25 @@
 
 #include <map>
 #include <vector>
+#include <pugixml.hpp>
+#include <pugixml.cpp>
 #include "element.h"
 #include "list.h"
-#include "pugixml.hpp"
-#include "pugixml.cpp"
+
 
 using list_reader::list_of_items;
-
-/*TODO: Add or subtract the value of the items from the 'total', this feature needs to be implemented in each
-function that has to do with adding or subtracting items */
 
 namespace cart {
 	typedef std::vector<std::pair<item_list_type::const_iterator, int>> cart_type;
 	static cart_type item_cart;
-	static float total = 0;
-	inline void print_cart(const std::string & a = "") {
+	unsigned int total = 0;
+	inline void print_cart(std::string & error_code, const std::string & a = "") {
 		pugi::xml_document doc;
 		pugi::xml_node cart_items = doc.append_child("cart_items");
+		if(item_cart.empty()) {
+			error_code = "Cart is empty.";
+			return;
+		}
 		for(cart_type::const_iterator iter = item_cart.begin(); iter != item_cart.end(); ++iter) {
 			pugi::xml_node temp = cart_items.append_child("item");
 			temp.append_attribute("cost").set_value(iter->first->second.cost());
@@ -28,15 +30,17 @@ namespace cart {
 			temp.append_attribute("amount").set_value(iter->second);
 		}
 		if(a.empty()) {
-			doc.save(std::cout);
+			doc.print(std::cout);
 		}
 		else {
 			doc.save_file(a.c_str());
 		}
 	}
-	inline void add_to_cart(const item_list_type::const_iterator & item) {
+	inline void add_to_cart(const std::string & barcode, std::string & error_message) {
+		item_list_type::const_iterator item = list_of_items.find(barcode);
 		if(item == list_of_items.end()) {
-			throw std::exception{ "No item with that barcode exists." };
+			error_message = "No item with that barcode exists.";
+			return;
 		}
 		for(cart_type::iterator iter = item_cart.begin(); iter != item_cart.end(); ++iter) {
 			if(iter->first == item) {
@@ -55,36 +59,33 @@ namespace cart {
 		}
 		return item_cart.end();
 	}
-	/* TODO: Remove the checking if the item with that barcode exists in the list or not, just check the cart
-	but this means also changing the find_item function by making it take just a barcode */
-	inline void remove_from_cart(const std::string & barcode) {
+	inline void remove_from_cart(const std::string & barcode, std::string & error_message) {
 		cart_type::const_iterator iter = find_item(barcode);
 		if(iter == item_cart.end()) {
-			throw std::exception{ "No item with that barcode is in the cart" };
-		}
-		//Needs to be tested for bugs
-		//item_list_type::const_iterator list_item = list_of_items.find(barcode); // Why is this here?
-		item_cart.erase(iter);
+			error_message = "No item with that barcode is in the cart";
+			return;
+		}	
 		total -= iter->first->second.cost();
+		item_cart.erase(iter);
 	}
-	inline void change_quantity(const std::string & barcode, const int & amount = -1) {
+	inline void change_quantity(const std::string & barcode, std::string & error_code,
+		const int & amount = -1) {
 		cart_type::iterator cart_item = find_item(barcode);
 		if(cart_item == item_cart.end()) {
-			throw std::exception{ "No item with that barcode is in the cart" };
+			error_code = "No item with that barcode is in the cart";
+			return;
 		}
 		if(amount == 0) {
 			item_cart.erase(cart_item);
 		}
-		else if(amount == -1) {
+		/* This is so when the item is scanned and we know the user did
+		not manualy enter any value, and so we just add one more of the item */
+		else if(amount == -1) { 
 			++cart_item->second;
 		}
 		else {
 			cart_item->second = amount;
 		}
 	}
-	///
-	void checkout() {} // UNFINISHED FEATURE
-	///
-
 }
 #endif // !_CART_H_

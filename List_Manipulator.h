@@ -1,14 +1,14 @@
 #ifndef _LIST_MANIPULATOR_H_
 #define _LIST_MANIPULATOR_H_
 
-#include <experimental\filesystem>
+#include <filesystem>
 #include <cstdio>
 #include <fstream>
 #include <vector>
 #include <map>
 #include <string>
-#include "pugixml.hpp"
-#include "pugixml.cpp"
+#include <pugixml.hpp>
+#include <pugixml.cpp>
 #include "List_Reader.h"
 #include "element.h"
 
@@ -19,9 +19,10 @@ using list_reader::list_of_items;
 namespace list_manip {
 	/* LIST SAVING & PRINTING */
 	bool save_list_on_exit = false;
-	inline void print_list(const bool & as_xml = true) {
+	inline void print_list(std::string & error_message, const bool & as_xml = true) {
 		if(list_of_items.empty()) {
-			throw std::exception{ "The item list is empty" };
+			error_message = "The item list is empty.";
+			return;
 		}
 		if(as_xml) {
 			pugi::xml_document doc;
@@ -32,7 +33,7 @@ namespace list_manip {
 				temp.append_attribute("name").set_value(item.second.name().c_str());
 				temp.append_attribute("barcode").set_value(item.first.c_str());
 			}
-			doc.save(std::cout);
+			doc.print(std::cout);
 		}
 	}
 	inline item_list_pair element_via_xml(const std::string & input) {
@@ -77,6 +78,8 @@ namespace list_manip {
 		file.save_file(file_name.c_str()); 
 	}
 	/* !LIST SAVING & PRINTING */
+
+
 	/* ITEM ADDING */
 	void add_item(const std::string & input) {
 		pugi::xml_document doc;
@@ -88,6 +91,8 @@ namespace list_manip {
 		save_list_on_exit = true;
 	}
 	/* !ITEM ADDING */
+
+
 	/* ITEM EDITING */
 	void edit_item(const std::string & input) {
 		pugi::xml_document doc;
@@ -100,8 +105,10 @@ namespace list_manip {
 		save_list_on_exit = true;
 	}
 	/* !ITEM EDITING */
+
+
 	/* ITEM REMOVAL */
-	void remove_item(const std::string & barcode) {
+	void remove_item(const std::string & barcode, std::string & error_message) {
 		for(item_list_type::const_iterator iter = list_of_items.begin();
 			iter != list_of_items.end(); ++iter) {
 			if(iter->first == barcode) {
@@ -110,7 +117,7 @@ namespace list_manip {
 				return;
 			}
 		}
-		throw std::exception{ "No barcode match was found" };
+		error_message = "No barcode match was found";
 	}
 	/* !ITEM REMOVAL */
 }
@@ -124,13 +131,13 @@ namespace search {
 		}
 		return true;
 	}
-	/*This function is called every time in the search bar a character is added or removed, and this function deals
-	with finding and sending the results to the output stream */
+
 	void draw_result(const std::string & input) {
 		bool is_barcode = check_if_barcode(input);
 		std::vector<item_list_type::const_iterator> results;
 		if(is_barcode) {
-			//The one with barcode won't work unless the barcode is the exact numberical value	
+			/* TODO: Since this one looks for barcodes, we need to change it up so we make it that it searches every string and then checks if the numbers we typed are contained inside the name */
+			// The one with barcode won't work unless the barcode is the exact numberical value	
 			item_list_type::const_iterator result = list_of_items.find(input);
 			if(result != list_of_items.end()) {
 				results.push_back(result);
@@ -156,7 +163,7 @@ namespace search {
 			temp.append_attribute("name").set_value((*iter)->second.name().c_str());
 			temp.append_attribute("barcode").set_value((*iter)->first.c_str());
 		}
-		search_results.save(std::cout);
+		search_results.print(std::cout);
 	}
 }
 #endif // !_LIST_MANIPULATOR_H_

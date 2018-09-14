@@ -1,15 +1,15 @@
 #ifndef _LIST_READER_H_
 #define _LIST_READER_H_
 
-#include <experimental/filesystem>
+#include <filesystem>
 #include <iostream>
 #include <vector>
 #include <fstream>
 #include <map>
 #include <string>
+#include <pugixml.cpp>
+#include <pugixml.hpp>
 #include "element.h"
-#include "pugixml.cpp"
-#include "pugixml.hpp"
 
 typedef std::map<std::string, element> item_list_type;
 
@@ -23,10 +23,10 @@ namespace list_reader {
 			std::cerr << "No " << file_name << " file found.";
 		}
 		else {
-			pugi::xml_document doc; // This is the document that holds the xml tree
-			pugi::xml_parse_result parse_result = doc.load_file(file_name.c_str());
+			pugi::xml_document item_list_file; // This is the document that holds the xml tree
+			pugi::xml_parse_result parse_result = item_list_file.load_file(file_name.c_str());
 			if(!parse_result) throw parse_result;
-			pugi::xml_node root_node = doc.root().child("items");
+			pugi::xml_node root_node = item_list_file.root().child("items");
 			for(pugi::xml_node_iterator node_it = root_node.begin(); node_it != root_node.end(); ++node_it) {
 				element temp;
 				int counter = 0;
