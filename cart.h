@@ -2,40 +2,19 @@
 #define _CART_H_
 
 #include <map>
-#include <vector>
-#include <pugixml.hpp>
 #include <pugixml.cpp>
+#include <pugixml.hpp>
+#include <vector>
 #include "element.h"
 #include "list.h"
 
 
 using list_reader::list_of_items;
+typedef std::vector<std::pair<item_list_type::const_iterator, int>> cart_type;
 
 namespace cart {
-	typedef std::vector<std::pair<item_list_type::const_iterator, int>> cart_type;
 	static cart_type item_cart;
 	unsigned int total = 0;
-	inline void print_cart(std::string & error_code, const std::string & a = "") {
-		pugi::xml_document doc;
-		pugi::xml_node cart_items = doc.append_child("cart_items");
-		if(item_cart.empty()) {
-			error_code = "Cart is empty.";
-			return;
-		}
-		for(cart_type::const_iterator iter = item_cart.begin(); iter != item_cart.end(); ++iter) {
-			pugi::xml_node temp = cart_items.append_child("item");
-			temp.append_attribute("cost").set_value(iter->first->second.cost());
-			temp.append_attribute("name").set_value(iter->first->second.name().c_str());
-			temp.append_attribute("barcode").set_value(iter->first->first.c_str());
-			temp.append_attribute("amount").set_value(iter->second);
-		}
-		if(a.empty()) {
-			doc.print(std::cout);
-		}
-		else {
-			doc.save_file(a.c_str());
-		}
-	}
 	inline void add_to_cart(const std::string & barcode, std::string & error_message) {
 		item_list_type::const_iterator item = list_of_items.find(barcode);
 		if(item == list_of_items.end()) {
@@ -59,14 +38,22 @@ namespace cart {
 		}
 		return item_cart.end();
 	}
-	inline void remove_from_cart(const std::string & barcode, std::string & error_message) {
-		cart_type::const_iterator iter = find_item(barcode);
+	inline void remove_from_cart(const std::string & barcode, std::string & error_message, bool all = false) {
+		cart_type::iterator iter = find_item(barcode);
 		if(iter == item_cart.end()) {
 			error_message = "No item with that barcode is in the cart";
 			return;
-		}	
-		total -= iter->first->second.cost();
-		item_cart.erase(iter);
+		}
+		if(!all) {
+			total -= iter->first->second.cost();
+			if(--iter->second <= 0) {
+				item_cart.erase(iter);
+			}
+		}
+		else {
+			total -= iter->first->second.cost() * iter->second;
+			item_cart.erase(iter);
+		}
 	}
 	inline void change_quantity(const std::string & barcode, std::string & error_code,
 		const int & amount = -1) {

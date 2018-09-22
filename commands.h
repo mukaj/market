@@ -2,18 +2,18 @@
 #define _COMMANDS_H_
 
 #include <string>
-#include <stdexcept>
-#include "list.h"
-#include "element.h"
 #include "cart.h"
-
-enum class command {
-	read_list, print_list, add, edit, remove,
-	search, add_cart, remove_cart,
-	print_cart, empty_cart, save_cart, exit = -1
-};
+#include "list.h"
+#include <stdexcept>
+#include "element.h"
 
 namespace commands {
+	enum class command {
+		read_list, print_list_xml, add, edit, remove,
+		search, add_cart, remove_cart,
+		empty_cart, exit = -1
+	};
+
 	inline void space_stripper(std::string & argument) {
 		if(argument.empty()) {
 			return;
@@ -34,7 +34,9 @@ namespace commands {
 			}
 		}
 	}
-	bool function_selector() {
+	std::string error_message;
+
+	bool backend_function_selector() {
 		std::string argument;
 		command option;
 		getline(std::cin, argument);
@@ -54,7 +56,6 @@ namespace commands {
 					argument.erase(argument.begin(), argument.begin() + temp.size());
 				}
 				space_stripper(argument);
-				std::string error_message;
 				switch(option) {
 					case command::read_list:
 						{
@@ -68,7 +69,7 @@ namespace commands {
 							}
 							break;
 						}
-					case command::print_list:
+					case command::print_list_xml:
 						{
 							list_manip::print_list(error_message);
 							break;
@@ -106,7 +107,7 @@ namespace commands {
 								error_message = "No search text was given.";
 								break;
 							}
-							search::draw_result(argument);
+							search::search(argument);
 							break;
 						}
 					case command::add_cart:
@@ -123,24 +124,10 @@ namespace commands {
 							cart::remove_from_cart(argument, error_message);
 							break;
 						}
-					case command::print_cart:
-						{
-							cart::print_cart(error_message);
-							break;
-						}
 					case command::empty_cart:
 						{
 							cart::item_cart.clear();
 							cart::total = 0;
-							break;
-						}
-					case command::save_cart:
-						{
-							if(argument.empty()) {
-								error_message = "You cannot save a cart file without a name.";
-								break;
-							}
-							cart::print_cart(error_message, argument.c_str());
 							break;
 						}
 					case command::exit:
@@ -160,6 +147,7 @@ namespace commands {
 				}
 				if(!error_message.empty()) {
 					std::cerr << error_message << std::endl;
+					error_message.clear();
 				}
 			}
 			else {

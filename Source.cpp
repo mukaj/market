@@ -1,11 +1,14 @@
-#include <iostream>
-#include <vector>
+#include "GUI.h"
 #include <string>
+#include <vector>
 #include "list.h"
+#include <iostream>
 #include "commands.h"
 
 int main() {
-	std::ios::sync_with_stdio(false);
-	while(commands::function_selector());
+	gui::market_gui mg;
+	while(commands::backend_function_selector());
+	mg.show();
+	nana::exec();
 	return 0;
 }

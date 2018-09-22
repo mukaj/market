@@ -1,40 +1,40 @@
 #ifndef _LIST_MANIPULATOR_H_
 #define _LIST_MANIPULATOR_H_
 
-#include <filesystem>
-#include <cstdio>
-#include <fstream>
-#include <vector>
 #include <map>
+#include <cstdio>
 #include <string>
-#include <pugixml.hpp>
-#include <pugixml.cpp>
-#include "List_Reader.h"
+#include <vector>
+#include <fstream>
 #include "element.h"
+#include <algorithm>
+#include <filesystem>
+#include <pugixml.cpp>
+#include <pugixml.hpp>
+#include "List_Reader.h"
 
 typedef std::map<std::string, element> item_list_type;
 typedef std::pair<std::string, element> item_list_pair;
+typedef std::vector<item_list_type::const_iterator> result_list_type;
 using list_reader::list_of_items;
 
 namespace list_manip {
 	/* LIST SAVING & PRINTING */
 	bool save_list_on_exit = false;
-	inline void print_list(std::string & error_message, const bool & as_xml = true) {
+	inline void print_list(std::string & error_message) {
 		if(list_of_items.empty()) {
 			error_message = "The item list is empty.";
 			return;
 		}
-		if(as_xml) {
-			pugi::xml_document doc;
-			pugi::xml_node item_root = doc.append_child("items");
-			for(const auto & item : list_reader::list_of_items) {
-				pugi::xml_node temp = item_root.append_child("item");
-				temp.append_attribute("cost").set_value(item.second.cost());
-				temp.append_attribute("name").set_value(item.second.name().c_str());
-				temp.append_attribute("barcode").set_value(item.first.c_str());
-			}
-			doc.print(std::cout);
+		pugi::xml_document doc;
+		pugi::xml_node item_root = doc.append_child("items");
+		for(const auto & item : list_reader::list_of_items) {
+			pugi::xml_node temp = item_root.append_child("item");
+			temp.append_attribute("cost").set_value(item.second.cost());
+			temp.append_attribute("name").set_value(item.second.name().c_str());
+			temp.append_attribute("barcode").set_value(item.first.c_str());
 		}
+		doc.print(std::cout);
 	}
 	inline item_list_pair element_via_xml(const std::string & input) {
 		pugi::xml_document doc;
@@ -123,6 +123,8 @@ namespace list_manip {
 }
 
 namespace search {
+	std::vector<item_list_type::const_iterator> results;
+
 	inline bool check_if_barcode(const std::string & input) {
 		for(const char & i : input) {
 			if(!(i>= 48 && i <= 57)) {
@@ -132,38 +134,37 @@ namespace search {
 		return true;
 	}
 
-	void draw_result(const std::string & input) {
+	void search(std::string & input) {
 		bool is_barcode = check_if_barcode(input);
-		std::vector<item_list_type::const_iterator> results;
+		results.clear();
 		if(is_barcode) {
-			/* TODO: Since this one looks for barcodes, we need to change it up so we make it that it searches every string and then checks if the numbers we typed are contained inside the name */
-			// The one with barcode won't work unless the barcode is the exact numberical value	
-			item_list_type::const_iterator result = list_of_items.find(input);
-			if(result != list_of_items.end()) {
-				results.push_back(result);
-			}
-		}
-		else {
-			for(item_list_type::const_iterator iter = list_of_items.begin(); iter != list_of_items.end(); ++iter) {
-				if(iter->second.name().find(input) != std::string::npos) {
-					results.push_back(iter);
+			for(item_list_type::const_iterator it = list_of_items.begin();
+				it != list_of_items.end();++it) {
+				if(it->first.find(input) != std::string::npos) {
+					results.push_back(it);
+					if(input == it->first) {
+						results.clear();
+						results.push_back(it);
+						return;
+					}
 				}
 			}
 		}
+		else {
+			std::transform(input.begin(), input.end(), input.begin(), ::tolower);
+			for(item_list_type::const_iterator iter = list_of_items.begin();
+				iter != list_of_items.end(); ++iter) {
+				std::string lowercase_item_name = iter->second.name();
+				std::transform(lowercase_item_name.begin(), lowercase_item_name.end(), lowercase_item_name.begin(), ::tolower);
+				if(lowercase_item_name.find(input) != std::string::npos) {
+					results.push_back(iter);
+				}
+				lowercase_item_name.clear();
+			}
+		}
 		if(results.size() == 0) {
-			std::cout << "No matches were found." << std::endl;
-			return;
+			std::cerr << "No matches were found." << std::endl;
 		}
-		pugi::xml_document search_results;
-		pugi::xml_node root = search_results.append_child("results");
-		for(std::vector<item_list_type::const_iterator>::const_iterator iter = results.begin();
-			iter != results.end(); ++iter) {
-			pugi::xml_node temp = root.append_child("item");
-			temp.append_attribute("cost").set_value((*iter)->second.cost());
-			temp.append_attribute("name").set_value((*iter)->second.name().c_str());
-			temp.append_attribute("barcode").set_value((*iter)->first.c_str());
-		}
-		search_results.print(std::cout);
 	}
 }
 #endif // !_LIST_MANIPULATOR_H_
