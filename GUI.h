@@ -10,6 +10,7 @@
 #include <nana/gui/widgets/form.hpp>
 #include <nana/gui/widgets/textbox.hpp>
 #include <nana/gui/widgets/listbox.hpp>
+#include <nana/gui/widgets/label.hpp>
 
 namespace gui {
 	class market_gui : public nana::form {
@@ -19,6 +20,7 @@ namespace gui {
 		void draw_results(bool all);
 		void draw_cart();
 		bool advanced_commands(const std::string & command);
+		nana::label total{ *this };
 		nana::textbox searchbar{ *this };
 		nana::listbox results{ *this }, cart{ *this };
 		nana::place plc{ *this };
@@ -56,6 +58,7 @@ namespace gui {
 				a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 				});
 		}
+		this->total.caption("< bold blue size = 30>" + std::to_string(cart::total) + "</>");
 	}
 
 	bool market_gui::advanced_commands(const std::string & command) {
@@ -69,13 +72,16 @@ namespace gui {
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
 		nana::API::focus_window(this->searchbar);
-		this->caption("Market");
+		this->caption("Market").bgcolor(nana::colors::white);
 		searchbar.tip_string("Search").multi_lines(false);
+		total.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
 
-		// ORDER HANDLING
-		plc.div("<vertical a arrange = [20]> <vertical b>");
+		// SETTING UP GUI WIDGETS
+		plc.div("<vertical a arrange=[3%, 90%]<vertical c >> <vertical b>");
 		plc.field("a") << searchbar << cart;
 		plc.field("b") << results;
+		plc.field("c") << total;
+		
 		plc.collocate();
 
 		results.append_header("Barcode");

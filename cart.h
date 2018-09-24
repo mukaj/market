@@ -2,12 +2,11 @@
 #define _CART_H_
 
 #include <map>
+#include <vector>
+#include "list.h"
+#include "element.h"
 #include <pugixml.cpp>
 #include <pugixml.hpp>
-#include <vector>
-#include "element.h"
-#include "list.h"
-
 
 using list_reader::list_of_items;
 typedef std::vector<std::pair<item_list_type::const_iterator, int>> cart_type;
@@ -24,6 +23,7 @@ namespace cart {
 		for(cart_type::iterator iter = item_cart.begin(); iter != item_cart.end(); ++iter) {
 			if(iter->first == item) {
 				++iter->second;
+				total += item->second.cost();
 				return;
 			}
 		}
