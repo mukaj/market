@@ -67,7 +67,7 @@ namespace cart {
 		}
 		/* This is so when the item is scanned and we know the user did
 		not manualy enter any value, and so we just add one more of the item */
-		else if(amount == -1) { 
+		else if(amount == -1) {
 			++cart_item->second;
 		}
 		else {

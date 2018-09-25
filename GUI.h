@@ -5,21 +5,25 @@
 #include "list.h"
 #include <string>
 #include "commands.h"
+#include <pugixml.hpp>
+#include <pugixml.cpp>
 #include <nana/gui.hpp>
 #include <nana/gui/place.hpp>
 #include <nana/gui/widgets/form.hpp>
 #include <nana/gui/widgets/textbox.hpp>
 #include <nana/gui/widgets/listbox.hpp>
 #include <nana/gui/widgets/label.hpp>
+#include <nana/gui/widgets/button.hpp>
 
 namespace gui {
 	class market_gui : public nana::form {
 	public:
 		market_gui();
 	private:
+		void edit_item();
 		void draw_results(bool all);
 		void draw_cart();
-		bool advanced_commands(const std::string & command);
+		void advanced_commands(const std::string & command);
 		nana::label total{ *this };
 		nana::textbox searchbar{ *this };
 		nana::listbox results{ *this }, cart{ *this };
@@ -27,6 +31,35 @@ namespace gui {
 		std::string selected_result_code, selected_item_code;
 		bool selected_result = false, selected_item = false;
 	};
+
+	void market_gui::edit_item() {
+		nana::form edit_form{ *this };
+		nana::textbox i_barcode{ edit_form }, i_name{ edit_form }, i_cost{ edit_form };
+		nana::place edit_place{ edit_form };
+		nana::button finish{ edit_form };
+		finish.caption("Save");
+		finish.events().click([this,&i_cost, &i_name, &i_barcode](const nana::arg_click & arg) {
+			element temp{ i_name.caption(), std::stoi(i_cost.caption()) };
+			list_reader::list_of_items[i_barcode.caption()] = temp;
+			//
+			this->cart.clear();
+			for(const auto & a : cart::item_cart) {
+				this->cart.at(0).append({
+					a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
+					});
+			}
+			this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+			//
+		});
+		edit_place.div("<vertical a arrange=[10%,10%,10%,10%]>");
+		edit_place.field("a") << i_barcode.editable(false).multi_lines(false).caption(this->selected_result_code)
+			<< i_name.multi_lines(false).caption(list_reader::list_of_items[selected_result_code].name())
+			<< i_cost.multi_lines(false).caption(std::to_string(list_reader::list_of_items[selected_result_code].cost()))
+			<< finish;
+		edit_place.collocate();
+		edit_form.show();
+		edit_form.wait_for_this();
+	}
 
 	void market_gui::draw_results(bool all = false) {
 		/* This if statement below is used when we have an exact barcode match so
@@ -50,7 +83,7 @@ namespace gui {
 		}
 	}
 
-	void market_gui::draw_cart() {
+	inline void market_gui::draw_cart() {
 		cart::add_to_cart(this->selected_result_code, commands::error_message);
 		this->cart.clear();
 		for(const auto & a : cart::item_cart) {
@@ -58,16 +91,18 @@ namespace gui {
 				a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 				});
 		}
-		this->total.caption("< bold blue size = 30>" + std::to_string(cart::total) + "</>");
+		this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
 	}
 
-	bool market_gui::advanced_commands(const std::string & command) {
+	inline void market_gui::advanced_commands(const std::string & command) {
 		if(command == "%all") {
 			this->results.clear();
 			this->draw_results(true);
-			return true;
 		}
-		return false;
+		else if(command == "%edit") {
+			this->results.clear();
+			this->draw_results(true);
+		}
 	}
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
@@ -81,7 +116,7 @@ namespace gui {
 		plc.field("a") << searchbar << cart;
 		plc.field("b") << results;
 		plc.field("c") << total;
-		
+
 		plc.collocate();
 
 		results.append_header("Barcode");
@@ -95,13 +130,13 @@ namespace gui {
 		// EVENT HANDLING
 		searchbar.events().text_changed([this](const nana::arg_textbox & arg) {
 			this->results.clear();
+			this->selected_result_code.clear();
+			this->selected_item_code.clear();
 			if(searchbar.caption() == "") {
 				return;
 			}
 			else if(searchbar.caption().front() == '%') {
-				if(this->advanced_commands(this->searchbar.caption())) {
-					return;
-				}
+				this->advanced_commands(this->searchbar.caption());
 			}
 			else {
 				search::search(searchbar.caption());
@@ -130,7 +165,7 @@ namespace gui {
 				}
 				this->selected_item_code.clear();
 				this->selected_item = false;
-				this->draw_cart(); 
+				this->draw_cart();
 			}
 		});
 
@@ -145,10 +180,15 @@ namespace gui {
 
 		results.events().dbl_click([this](const nana::arg_mouse & arg) {
 			if(!this->selected_result_code.empty()) {
-				this->draw_cart();
-				this->selected_result_code.clear();
-				results.clear();
-				this->searchbar.caption("");
+				if(this->searchbar.caption().front() != '%') {
+					this->draw_cart();
+					this->selected_result_code.clear();
+					this->searchbar.caption("");
+					results.clear();
+				}
+				else {
+					this->edit_item();
+				}
 			}
 			nana::API::focus_window(this->searchbar);
 		});

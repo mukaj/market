@@ -70,12 +70,12 @@ namespace list_manip {
 			temp.append_attribute("cost").set_value(it->second.cost());
 			temp.append_attribute("name").set_value(it->second.name().c_str());
 			temp.append_attribute("barcode").set_value(it->first.c_str());
-		} 
+		}
 		if(std::experimental::filesystem::exists(file_name)) {
 			std::string new_name = file_name + "_OLD";
 			rename(file_name.c_str(), new_name.c_str());
 		}
-		file.save_file(file_name.c_str()); 
+		file.save_file(file_name.c_str());
 	}
 	/* !LIST SAVING & PRINTING */
 
@@ -127,7 +127,7 @@ namespace search {
 
 	inline bool check_if_barcode(const std::string & input) {
 		for(const char & i : input) {
-			if(!(i>= 48 && i <= 57)) {
+			if(!(i >= 48 && i <= 57)) {
 				return false;
 			}
 		}
@@ -139,7 +139,7 @@ namespace search {
 		results.clear();
 		if(is_barcode) {
 			for(item_list_type::const_iterator it = list_of_items.begin();
-				it != list_of_items.end();++it) {
+				it != list_of_items.end(); ++it) {
 				if(it->first.find(input) != std::string::npos) {
 					results.push_back(it);
 					if(input == it->first) {
