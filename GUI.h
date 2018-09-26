@@ -38,18 +38,18 @@ namespace gui {
 		nana::place edit_place{ edit_form };
 		nana::button finish{ edit_form };
 		finish.caption("Save");
-		finish.events().click([this,&i_cost, &i_name, &i_barcode](const nana::arg_click & arg) {
+		finish.events().click([this, &i_cost, &i_name, &i_barcode](const nana::arg_click & arg) {
 			element temp{ i_name.caption(), std::stoi(i_cost.caption()) };
 			list_reader::list_of_items[i_barcode.caption()] = temp;
-			//
 			this->cart.clear();
+			cart::total = 0;
 			for(const auto & a : cart::item_cart) {
 				this->cart.at(0).append({
 					a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 					});
+				cart::total += a.first->second.cost();
 			}
 			this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
-			//
 		});
 		edit_place.div("<vertical a arrange=[10%,10%,10%,10%]>");
 		edit_place.field("a") << i_barcode.editable(false).multi_lines(false).caption(this->selected_result_code)
