@@ -13,12 +13,14 @@
 #include <pugixml.hpp>
 #include "List_Reader.h"
 
+
 typedef std::map<std::string, element> item_list_type;
 typedef std::pair<std::string, element> item_list_pair;
 typedef std::vector<item_list_type::const_iterator> result_list_type;
-using list_reader::list_of_items;
+
 
 namespace list_manip {
+	using list_reader::list_of_items;
 	/* LIST SAVING & PRINTING */
 	bool save_list_on_exit = false;
 	inline void print_list(std::string & error_message) {
@@ -72,57 +74,15 @@ namespace list_manip {
 			temp.append_attribute("barcode").set_value(it->first.c_str());
 		}
 		if(std::experimental::filesystem::exists(file_name)) {
-			std::string new_name = file_name + "_OLD";
-			rename(file_name.c_str(), new_name.c_str());
+			remove(file_name.c_str());
 		}
 		file.save_file(file_name.c_str());
 	}
 	/* !LIST SAVING & PRINTING */
-
-
-	/* ITEM ADDING */
-	void add_item(const std::string & input) {
-		pugi::xml_document doc;
-		pugi::xml_parse_result parse_result = doc.load_string(input.c_str());
-		if(!parse_result) throw parse_result;
-		pugi::xml_node item = doc.document_element();
-		item_list_pair new_item = element_via_xml(input);
-		list_of_items[new_item.first] = new_item.second;
-		save_list_on_exit = true;
-	}
-	/* !ITEM ADDING */
-
-
-	/* ITEM EDITING */
-	void edit_item(const std::string & input) {
-		pugi::xml_document doc;
-		pugi::xml_parse_result parse_result = doc.load_string(input.c_str());
-		if(!parse_result) throw parse_result;
-		pugi::xml_node item = doc.document_element();
-		item_list_pair edited_item = element_via_xml(input);
-		list_of_items.erase(edited_item.first); // This will erase the previous element with that barcode
-		list_of_items.insert(edited_item); // And this re-adds that item, now edited
-		save_list_on_exit = true;
-	}
-	/* !ITEM EDITING */
-
-
-	/* ITEM REMOVAL */
-	void remove_item(const std::string & barcode, std::string & error_message) {
-		for(item_list_type::const_iterator iter = list_of_items.begin();
-			iter != list_of_items.end(); ++iter) {
-			if(iter->first == barcode) {
-				save_list_on_exit = true;
-				list_of_items.erase(iter);
-				return;
-			}
-		}
-		error_message = "No barcode match was found";
-	}
-	/* !ITEM REMOVAL */
 }
 
 namespace search {
+	using list_reader::list_of_items;
 	std::vector<item_list_type::const_iterator> results;
 
 	inline bool check_if_barcode(const std::string & input) {

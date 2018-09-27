@@ -9,7 +9,7 @@
 
 namespace commands {
 	enum class command {
-		read_list, print_list_xml, add, edit, remove,
+		read_list, print_list_xml,
 		search, add_cart, remove_cart,
 		empty_cart, exit = -1
 	};
@@ -72,33 +72,6 @@ namespace commands {
 					case command::print_list_xml:
 						{
 							list_manip::print_list(error_message);
-							break;
-						}
-					case command::add:
-						{
-							if(argument.empty()) {
-								error_message = "Empty argument, there is nothing to add.";
-								break;
-							}
-							list_manip::add_item(argument);
-							break;
-						}
-					case command::edit:
-						{
-							if(!cart::item_cart.empty()) {
-								error_message = "Cannot edit item list while cart is not empty.";
-								break;
-							}
-							list_manip::edit_item(argument);
-							break;
-						}
-					case command::remove:
-						{
-							if(!cart::item_cart.empty()) {
-								error_message = "Cannot edit item list while cart is not empty.";
-								break;
-							}
-							list_manip::remove_item(argument, error_message);
 							break;
 						}
 					case command::search:

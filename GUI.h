@@ -14,13 +14,49 @@
 #include <nana/gui/widgets/listbox.hpp>
 #include <nana/gui/widgets/label.hpp>
 #include <nana/gui/widgets/button.hpp>
+#include <nana/gui/msgbox.hpp>
 
 namespace gui {
+	using list_reader::list_of_items;
+	class utility_window : public nana::form {
+	public:
+		utility_window() {
+			order.div("<vertical a arrange=[10%,10%,10%,15%,15%]>");
+			order.field("a") << i_barcode.multi_lines(false).editable(false).tip_string("Barcode")
+				<< i_name.multi_lines(false).tip_string("Name")
+				<< i_cost.multi_lines(false).tip_string("Cost")
+				<< save.caption("Save")
+				<< cancel.caption("Cancel");
+			order.collocate();
+			popup.icon(popup.icon_error);
+			i_barcode.set_accept([](const char & character) {
+				return (character >= 48 && character <= 57);
+			});
+			cancel.events().click([this](const nana::arg_click & arg) {
+				this->close();
+			});
+		}
+		inline bool fields_empty() {
+			return !(!i_name.caption().empty() && !i_barcode.caption().empty()
+				&& !i_cost.caption().empty());
+		}
+		nana::textbox i_barcode{ *this }, i_name{ *this }, i_cost{ *this };
+		nana::place order{ *this };
+		nana::button save{ *this }, cancel{ *this };
+		nana::msgbox popup{ *this, "Error" };
+	};
+
 	class market_gui : public nana::form {
 	public:
 		market_gui();
 	private:
+		enum class function {
+			add, edit, remove, none = -1
+		};
+		function funtion_to_call = function::none;
+		void add_item();
 		void edit_item();
+		void remove_item();
 		void draw_results(bool all);
 		void draw_cart();
 		void advanced_commands(const std::string & command);
@@ -32,33 +68,83 @@ namespace gui {
 		bool selected_result = false, selected_item = false;
 	};
 
-	void market_gui::edit_item() {
-		nana::form edit_form{ *this };
-		nana::textbox i_barcode{ edit_form }, i_name{ edit_form }, i_cost{ edit_form };
-		nana::place edit_place{ edit_form };
-		nana::button finish{ edit_form };
-		finish.caption("Save");
-		finish.events().click([this, &i_cost, &i_name, &i_barcode](const nana::arg_click & arg) {
-			element temp{ i_name.caption(), std::stoi(i_cost.caption()) };
-			list_reader::list_of_items[i_barcode.caption()] = temp;
-			this->cart.clear();
-			cart::total = 0;
-			for(const auto & a : cart::item_cart) {
-				this->cart.at(0).append({
-					a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
-					});
-				cart::total += a.first->second.cost();
+	void gui::market_gui::add_item() {
+		utility_window add_window;
+		this->enabled(false);
+		add_window.i_barcode.editable(true);
+		add_window.save.events().click([this, &add_window](const nana::arg_click & arg) {
+			if(!add_window.fields_empty()) {
+				element temp{ add_window.i_name.caption(), std::stoi(add_window.i_cost.caption()) };
+				if(!list_of_items.insert(std::make_pair(add_window.i_barcode.caption(), temp)).second) {
+					add_window.popup.clear();
+					add_window.popup << "There already is an item with that barcode";
+					(add_window.popup() != add_window.popup.pick_ok);
+				}
+				else {
+					list_manip::save_list_on_exit = true;
+					add_window.close();
+				}
 			}
-			this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+			else {
+				add_window.popup.clear();
+				add_window.popup << "Please fill out all of the fields.";
+				(add_window.popup() != add_window.popup.pick_ok);
+			}
 		});
-		edit_place.div("<vertical a arrange=[10%,10%,10%,10%]>");
-		edit_place.field("a") << i_barcode.editable(false).multi_lines(false).caption(this->selected_result_code)
-			<< i_name.multi_lines(false).caption(list_reader::list_of_items[selected_result_code].name())
-			<< i_cost.multi_lines(false).caption(std::to_string(list_reader::list_of_items[selected_result_code].cost()))
-			<< finish;
-		edit_place.collocate();
-		edit_form.show();
-		edit_form.wait_for_this();
+		add_window.show();
+		add_window.wait_for_this();
+		this->enabled(true);
+		this->searchbar.caption("");
+		nana::API::focus_window(this->searchbar);
+	}
+
+	void market_gui::edit_item() {
+		utility_window edit_window;
+		this->enabled(false);
+		auto item = list_of_items.find(selected_result_code);
+		edit_window.i_barcode.caption(item->first);
+		edit_window.i_name.caption(item->second.name());
+		edit_window.i_cost.caption(std::to_string(item->second.cost()));
+		edit_window.save.events().click([this, &edit_window](const nana::arg_click & arg) {
+			if(!edit_window.fields_empty()) {
+				element temp{ edit_window.i_name.caption(), std::stoi(edit_window.i_cost.caption()) };
+				list_of_items[this->selected_result_code] = temp;
+				this->cart.clear();
+				cart::total = 0;
+				for(const auto & a : cart::item_cart) {
+					this->cart.at(0).append({
+						a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
+						});
+					cart::total += a.first->second.cost();
+				}
+				this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+				list_manip::save_list_on_exit = true;
+				edit_window.close();
+				this->searchbar.caption("%all");
+			}
+			else {
+				edit_window.popup.clear();
+				edit_window.popup << "Please fill out all of the fields.";
+				(edit_window.popup() != edit_window.popup.pick_ok);
+			}
+		});
+		edit_window.show();
+		edit_window.wait_for_this();
+		this->enabled(true);
+		this->searchbar.caption("");
+		nana::API::focus_window(this->searchbar);
+	}
+
+	void market_gui::remove_item() {
+		this->enabled(false);
+		nana::msgbox remove_window(*this, "Confirmation", nana::msgbox::yes_no);
+		remove_window << "Are you sure you want to remove the item?";
+		if(remove_window() == remove_window.pick_yes) {
+			list_of_items.erase(list_of_items.find(this->selected_result_code));
+			list_manip::save_list_on_exit = true;
+		}
+		this->searchbar.caption("");
+		this->enabled(true);
 	}
 
 	void market_gui::draw_results(bool all = false) {
@@ -72,7 +158,7 @@ namespace gui {
 			return;
 		}
 		if(all) {
-			for(const auto & a : list_reader::list_of_items) {
+			for(const auto & a : list_of_items) {
 				this->results.at(0).append({ a.first, a.second.name(), std::to_string(a.second.cost()) });
 			}
 		}
@@ -102,12 +188,22 @@ namespace gui {
 		else if(command == "%edit") {
 			this->results.clear();
 			this->draw_results(true);
+			this->funtion_to_call = function::edit;
+		}
+		else if(command == "%remove") {
+			this->results.clear();
+			this->draw_results(true);
+			this->funtion_to_call = function::remove;
+		}
+		else if(command == "%add") {
+			this->results.clear();
+			this->add_item();
 		}
 	}
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
 		nana::API::focus_window(this->searchbar);
-		this->caption("Market").bgcolor(nana::colors::white);
+		this->caption("Market (Dev. Adnan Mukaj)").bgcolor(nana::colors::white);
 		searchbar.tip_string("Search").multi_lines(false);
 		total.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
 
@@ -128,6 +224,10 @@ namespace gui {
 		cart.append_header("Amount");
 
 		// EVENT HANDLING
+		this->events().destroy([this](const nana::arg_destroy & arg) {
+			list_manip::resave();
+		});
+
 		searchbar.events().text_changed([this](const nana::arg_textbox & arg) {
 			this->results.clear();
 			this->selected_result_code.clear();
@@ -187,7 +287,12 @@ namespace gui {
 					results.clear();
 				}
 				else {
-					this->edit_item();
+					switch(this->funtion_to_call) {
+						case function::edit:
+							this->edit_item(); break;
+						case function::remove:
+							this->remove_item(); break;
+					}
 				}
 			}
 			nana::API::focus_window(this->searchbar);
