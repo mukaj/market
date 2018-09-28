@@ -15,7 +15,7 @@ typedef std::map<std::string, element> item_list_type;
 
 namespace list_reader {
 	//This string holds the name of the default file name that we will use to read the list from
-	static std::string file_name = "example.xml";
+	static std::string file_name = "";
 	//This is the map that contains all the elements and their barcode
 	static item_list_type list_of_items;
 	void read_list(const std::string & file_name = list_reader::file_name) {

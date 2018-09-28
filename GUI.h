@@ -4,7 +4,6 @@
 #include "cart.h"
 #include "list.h"
 #include <string>
-#include "commands.h"
 #include <pugixml.hpp>
 #include <pugixml.cpp>
 #include <nana/gui.hpp>
@@ -15,6 +14,7 @@
 #include <nana/gui/widgets/label.hpp>
 #include <nana/gui/widgets/button.hpp>
 #include <nana/gui/msgbox.hpp>
+#include <nana/gui/filebox.hpp>
 
 namespace gui {
 	using list_reader::list_of_items;
@@ -54,19 +54,43 @@ namespace gui {
 			add, edit, remove, none = -1
 		};
 		function funtion_to_call = function::none;
+		void read_file();
 		void add_item();
 		void edit_item();
 		void remove_item();
 		void draw_results(bool all);
 		void draw_cart();
 		void advanced_commands(const std::string & command);
+		void report_error();
 		nana::label total{ *this };
 		nana::textbox searchbar{ *this };
 		nana::listbox results{ *this }, cart{ *this };
 		nana::place plc{ *this };
-		std::string selected_result_code, selected_item_code;
+		nana::msgbox error_dialog{ *this,"Error" };
+		std::string selected_result_code, selected_item_code, error_message;
 		bool selected_result = false, selected_item = false;
 	};
+
+	void gui::market_gui::read_file() {
+		this->enabled(false);
+		nana::filebox a(true);
+		a.add_filter("XML File", "*.xml");
+		if(a()) {
+			try {
+				list_reader::file_name = a.file();
+				list_reader::read_list();
+			}
+			catch(const pugi::xml_parse_result& a) {
+				nana::msgbox error_display(*this, "Error!");
+				error_display << "Parse error: " << a.description() << ", character pos = "
+					<< a.offset;
+				error_display();
+			}
+			this->searchbar.caption("%all");
+		}
+		this->enabled(true);
+		nana::API::focus_window(*this);
+	}
 
 	void gui::market_gui::add_item() {
 		utility_window add_window;
@@ -93,8 +117,8 @@ namespace gui {
 		});
 		add_window.show();
 		add_window.wait_for_this();
-		this->enabled(true);
 		this->searchbar.caption("");
+		this->enabled(true);
 		nana::API::focus_window(this->searchbar);
 	}
 
@@ -130,8 +154,8 @@ namespace gui {
 		});
 		edit_window.show();
 		edit_window.wait_for_this();
-		this->enabled(true);
 		this->searchbar.caption("");
+		this->enabled(true);
 		nana::API::focus_window(this->searchbar);
 	}
 
@@ -170,7 +194,11 @@ namespace gui {
 	}
 
 	inline void market_gui::draw_cart() {
-		cart::add_to_cart(this->selected_result_code, commands::error_message);
+		cart::add_to_cart(this->selected_result_code, this->error_message);
+		if(!this->error_message.empty()) {
+			this->report_error();
+			return;
+		}
 		this->cart.clear();
 		for(const auto & a : cart::item_cart) {
 			this->cart.at(0).append({
@@ -199,6 +227,16 @@ namespace gui {
 			this->results.clear();
 			this->add_item();
 		}
+		else if(command == "%read") {
+			this->read_file();
+		}
+	}
+
+	void market_gui::report_error() {
+		this->error_dialog << error_message;
+		error_dialog();
+		this->error_dialog.clear();
+		this->error_message.clear();
 	}
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
@@ -258,11 +296,12 @@ namespace gui {
 		cart.events().dbl_click([this](const nana::arg_mouse & arg) {
 			if(!this->selected_item_code.empty()) {
 				if(arg.left_button) {
-					cart::remove_from_cart(this->selected_item_code, commands::error_message);
+					cart::remove_from_cart(this->selected_item_code, this->error_message);
 				}
 				else {
-					cart::remove_from_cart(this->selected_item_code, commands::error_message, true);
+					cart::remove_from_cart(this->selected_item_code, this->error_message, true);
 				}
+				this->report_error();
 				this->selected_item_code.clear();
 				this->selected_item = false;
 				this->draw_cart();
