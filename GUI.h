@@ -8,13 +8,14 @@
 #include <pugixml.cpp>
 #include <nana/gui.hpp>
 #include <nana/gui/place.hpp>
-#include <nana/gui/widgets/form.hpp>
-#include <nana/gui/widgets/textbox.hpp>
-#include <nana/gui/widgets/listbox.hpp>
-#include <nana/gui/widgets/label.hpp>
-#include <nana/gui/widgets/button.hpp>
 #include <nana/gui/msgbox.hpp>
 #include <nana/gui/filebox.hpp>
+#include <nana/gui/widgets/form.hpp>
+#include <nana/gui/widgets/label.hpp>
+#include <nana/gui/widgets/button.hpp>
+#include <nana/gui/widgets/textbox.hpp>
+#include <nana/gui/widgets/listbox.hpp>
+#include <nana/gui/widgets/menubar.hpp>
 
 namespace gui {
 	using list_reader::list_of_items;
@@ -53,22 +54,22 @@ namespace gui {
 		enum class function {
 			add, edit, remove, none = -1
 		};
-		function funtion_to_call = function::none;
+		function function_to_call = function::none;
 		void read_file();
 		void add_item();
 		void edit_item();
 		void remove_item();
-		void draw_results(bool all);
 		void draw_cart();
-		void advanced_commands(const std::string & command);
+		void draw_results(bool all);
 		void report_error();
-		nana::label total{ *this };
-		nana::textbox searchbar{ *this };
-		nana::listbox results{ *this }, cart{ *this };
 		nana::place plc{ *this };
+		nana::label total{ *this };
+		nana::menubar menubar{ *this };
+		nana::textbox searchbar{ *this };
 		nana::msgbox error_dialog{ *this,"Error" };
+		nana::listbox results{ *this }, cart{ *this };
 		std::string selected_result_code, selected_item_code, error_message;
-		bool selected_result = false, selected_item = false;
+		bool selected_result = false, selected_item = false, loaded_item_list = false;
 	};
 
 	void gui::market_gui::read_file() {
@@ -77,17 +78,18 @@ namespace gui {
 		a.add_filter("XML File", "*.xml");
 		if(a()) {
 			try {
-				list_reader::file_name = a.file();
-				list_reader::read_list();
+				list_reader::read_list(this->error_message, a.file());
+				if(!this->error_message.empty())
+					this->report_error();
 			}
-			catch(const pugi::xml_parse_result& a) {
+			catch(const pugi::xml_parse_result& parse_error) {
 				nana::msgbox error_display(*this, "Error!");
-				error_display << "Parse error: " << a.description() << ", character pos = "
-					<< a.offset;
+				error_display << "Parse error: " << parse_error.description() << ", character pos = "
+					<< parse_error.offset;
 				error_display();
 			}
-			this->searchbar.caption("%all");
 		}
+		this->loaded_item_list = true;
 		this->enabled(true);
 		nana::API::focus_window(*this);
 	}
@@ -171,6 +173,21 @@ namespace gui {
 		this->enabled(true);
 	}
 
+	inline void market_gui::draw_cart() {
+		cart::add_to_cart(this->selected_result_code, this->error_message);
+		if(!this->error_message.empty()) {
+			this->report_error();
+			return;
+		}
+		this->cart.clear();
+		for(const auto & a : cart::item_cart) {
+			this->cart.at(0).append({
+				a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
+				});
+		}
+		this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+	}
+
 	void market_gui::draw_results(bool all = false) {
 		/* This if statement below is used when we have an exact barcode match so
 		it is added automatically into the cart */
@@ -193,46 +210,7 @@ namespace gui {
 		}
 	}
 
-	inline void market_gui::draw_cart() {
-		cart::add_to_cart(this->selected_result_code, this->error_message);
-		if(!this->error_message.empty()) {
-			this->report_error();
-			return;
-		}
-		this->cart.clear();
-		for(const auto & a : cart::item_cart) {
-			this->cart.at(0).append({
-				a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
-				});
-		}
-		this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
-	}
-
-	inline void market_gui::advanced_commands(const std::string & command) {
-		if(command == "%all") {
-			this->results.clear();
-			this->draw_results(true);
-		}
-		else if(command == "%edit") {
-			this->results.clear();
-			this->draw_results(true);
-			this->funtion_to_call = function::edit;
-		}
-		else if(command == "%remove") {
-			this->results.clear();
-			this->draw_results(true);
-			this->funtion_to_call = function::remove;
-		}
-		else if(command == "%add") {
-			this->results.clear();
-			this->add_item();
-		}
-		else if(command == "%read") {
-			this->read_file();
-		}
-	}
-
-	void market_gui::report_error() {
+	inline void market_gui::report_error() {
 		this->error_dialog << error_message;
 		error_dialog();
 		this->error_dialog.clear();
@@ -241,17 +219,21 @@ namespace gui {
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
 		nana::API::focus_window(this->searchbar);
-		this->caption("Market (Dev. Adnan Mukaj)").bgcolor(nana::colors::white);
+		this->caption("Market").bgcolor(nana::colors::white);
 		searchbar.tip_string("Search").multi_lines(false);
 		total.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
+		menubar.bgcolor(nana::colors::white);
 
 		// SETTING UP GUI WIDGETS
-		plc.div("<vertical a arrange=[3%, 90%]<vertical c >> <vertical b>");
-		plc.field("a") << searchbar << cart;
+		plc.div("<vertical <m weight=25><g<vertical a arrange=[7%, 3%, 90%]> <vertical b>>");
+		plc.field("a") << total << searchbar << cart;
 		plc.field("b") << results;
-		plc.field("c") << total;
-
+		plc.field("m") << menubar;
 		plc.collocate();
+
+		menubar.push_back("&File");
+		menubar.push_back("&Items");
+		menubar.push_back("&Help");
 
 		results.append_header("Barcode");
 		results.append_header("Name");
@@ -260,6 +242,39 @@ namespace gui {
 		cart.append_header("Name");
 		cart.append_header("Price");
 		cart.append_header("Amount");
+
+		// MENUBAR CONFIGURATION
+		menubar.at(0).append("&Read List File", [this](const nana::menu::item_proxy & prx) {
+			this->read_file();
+		});
+		menubar.at(0).append("&Exit", [this](const nana::menu::item_proxy & prx) {
+			this->close();
+		});
+		menubar.at(1).append("&Show All Items", [this](const nana::menu::item_proxy & prx) {
+			this->results.clear();
+			this->draw_results(true);
+		});
+		menubar.at(1).append("&Add Item", [this](const nana::menu::item_proxy & prx) {
+			this->results.clear();
+			this->add_item();
+		});
+		menubar.at(1).append("&Edit Item", [this](const nana::menu::item_proxy & prx) {
+			this->results.clear();
+			this->draw_results(true);
+			this->function_to_call = function::edit;
+		});
+		menubar.at(1).append("&Remove Item", [this](const nana::menu::item_proxy & prx) {
+			this->results.clear();
+			this->draw_results(true);
+			this->function_to_call = function::remove;
+		});
+		menubar.at(2).append("About", [this](const nana::menu::item_proxy) {
+			nana::msgbox a{ "About" };
+			this->enabled(false);
+			a << "This software is open-source, and currently being developed.\nAdnan Mukaj";
+			a();
+			this->enabled(true);
+		});
 
 		// EVENT HANDLING
 		this->events().destroy([this](const nana::arg_destroy & arg) {
@@ -273,11 +288,14 @@ namespace gui {
 			if(searchbar.caption() == "") {
 				return;
 			}
-			else if(searchbar.caption().front() == '%') {
-				this->advanced_commands(this->searchbar.caption());
+			else if(!this->loaded_item_list) {
+				this->error_message = "In order to make items appear you need to select a file to read items from.";
+				this->report_error();
 			}
 			else {
-				search::search(searchbar.caption());
+				search::search(searchbar.caption(), this->error_message);
+				if(!this->error_message.empty())
+					this->report_error();
 				this->draw_results();
 			}
 		});
@@ -319,19 +337,20 @@ namespace gui {
 
 		results.events().dbl_click([this](const nana::arg_mouse & arg) {
 			if(!this->selected_result_code.empty()) {
-				if(this->searchbar.caption().front() != '%') {
+				if(!this->searchbar.caption().empty()) {
 					this->draw_cart();
 					this->selected_result_code.clear();
 					this->searchbar.caption("");
 					results.clear();
 				}
 				else {
-					switch(this->funtion_to_call) {
+					switch(this->function_to_call) {
 						case function::edit:
 							this->edit_item(); break;
 						case function::remove:
 							this->remove_item(); break;
 					}
+					this->function_to_call = function::none;
 				}
 			}
 			nana::API::focus_window(this->searchbar);

@@ -23,21 +23,6 @@ namespace list_manip {
 	using list_reader::list_of_items;
 	/* LIST SAVING & PRINTING */
 	bool save_list_on_exit = false;
-	inline void print_list(std::string & error_message) {
-		if(list_of_items.empty()) {
-			error_message = "The item list is empty.";
-			return;
-		}
-		pugi::xml_document doc;
-		pugi::xml_node item_root = doc.append_child("items");
-		for(const auto & item : list_reader::list_of_items) {
-			pugi::xml_node temp = item_root.append_child("item");
-			temp.append_attribute("cost").set_value(item.second.cost());
-			temp.append_attribute("name").set_value(item.second.name().c_str());
-			temp.append_attribute("barcode").set_value(item.first.c_str());
-		}
-		doc.print(std::cout);
-	}
 	inline item_list_pair element_via_xml(const std::string & input) {
 		pugi::xml_document doc;
 		pugi::xml_parse_result parse_result = doc.load_string(input.c_str());
@@ -94,7 +79,7 @@ namespace search {
 		return true;
 	}
 
-	void search(std::string & input) {
+	void search(std::string & input, std::string & error_message) {
 		bool is_barcode = check_if_barcode(input);
 		results.clear();
 		if(is_barcode) {
@@ -121,9 +106,6 @@ namespace search {
 				}
 				lowercase_item_name.clear();
 			}
-		}
-		if(results.size() == 0) {
-			std::cerr << "No matches were found." << std::endl;
 		}
 	}
 }

@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <iostream>
 #include "element.h"
 #include <filesystem>
 #include <pugixml.cpp>
@@ -18,9 +17,9 @@ namespace list_reader {
 	static std::string file_name = "";
 	//This is the map that contains all the elements and their barcode
 	static item_list_type list_of_items;
-	void read_list(const std::string & file_name = list_reader::file_name) {
+	void read_list(std::string & error_message, std::string & file_name = list_reader::file_name) {
 		if(!std::experimental::filesystem::exists(file_name)) {
-			std::cerr << "No " << file_name << " file found.";
+			error_message = "No " + file_name + " file found.";
 		}
 		else {
 			pugi::xml_document item_list_file; // This is the document that holds the xml tree
