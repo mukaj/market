@@ -70,26 +70,26 @@ namespace gui {
 		void draw_cart();
 		void draw_results(bool);
 		bool loaded_list();
-		nana::place plc{ *this };
-		nana::label total{ *this };
-		nana::menubar menubar{ *this };
-		nana::textbox searchbar{ *this };
-		nana::msgbox error_dialog{ *this,"Error" };
-		nana::listbox results{ *this }, cart{ *this };
-		std::string selected_result_code, selected_item_code, error_message;
-		bool selected_result = false, selected_item = false, loaded_item_list = false;
+		nana::place plc_{ *this };
+		nana::label total_{ *this };
+		nana::menubar menubar_{ *this };
+		nana::textbox searchbar_{ *this };
+		nana::msgbox error_dialog_{ *this,"Error" };
+		nana::listbox results_{ *this }, cart_{ *this };
+		std::string selected_result_code_, selected_item_code_, error_message_;
+		bool selected_result_ = false, selected_item_ = false, loaded_item_list_ = false;
 	};
 
 	inline void market_gui::report_error(market_gui::market_error_type err = market_gui::market_error_type::undefined) {
 		switch(err) {
 			case market_error_type::no_list_read:
-				this->error_message = "You need to have read an item list in order to use this feature.";
+				error_message_ = "You need to have read an item list in order to use this feature.";
 				break;
 		}
-		this->error_dialog << error_message;
-		error_dialog();
-		this->error_dialog.clear();
-		this->error_message.clear();
+		error_dialog_ << error_message_;
+		error_dialog_();
+		error_dialog_.clear();
+		error_message_.clear();
 	}
 
 	void gui::market_gui::read_file() {
@@ -98,8 +98,8 @@ namespace gui {
 		a.add_filter("XML File", "*.xml");
 		if(a()) {
 			try {
-				list_reader::read_list(this->error_message, a.file());
-				if(!this->error_message.empty())
+				list_reader::read_list(error_message_, a.file());
+				if(!error_message_.empty())
 					this->report_error();
 			}
 			catch(const pugi::xml_parse_result& parse_error) {
@@ -109,7 +109,7 @@ namespace gui {
 				error_display();
 			}
 		}
-		this->loaded_item_list = true;
+		loaded_item_list_ = true;
 		this->enabled(true);
 		nana::API::focus_window(*this);
 	}
@@ -139,34 +139,34 @@ namespace gui {
 		});
 		add_window.show();
 		add_window.wait_for_this();
-		this->searchbar.caption("");
+		searchbar_.caption("");
 		this->enabled(true);
-		nana::API::focus_window(this->searchbar);
+		nana::API::focus_window(searchbar_);
 	}
 
 	void market_gui::edit_item() {
 		utility_window edit_window{ "Edit Item" };
 		this->enabled(false);
-		auto item = list_of_items.find(selected_result_code);
+		auto item = list_of_items.find(selected_result_code_);
 		edit_window.i_barcode.caption(item->first);
 		edit_window.i_name.caption(item->second.name());
 		edit_window.i_cost.caption(std::to_string(item->second.cost()));
 		edit_window.save.events().click([this, &edit_window](const nana::arg_click & arg) {
 			if(!edit_window.fields_empty()) {
 				element temp{ edit_window.i_name.caption(), std::stoi(edit_window.i_cost.caption()) };
-				list_of_items[this->selected_result_code] = temp;
-				this->cart.clear();
+				list_of_items[selected_result_code_] = temp;
+				cart_.clear();
 				cart::total = 0;
 				for(const auto & a : cart::item_cart) {
-					this->cart.at(0).append({
+					cart_.at(0).append({
 						a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 						});
 					cart::total += a.first->second.cost();
 				}
-				this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+				total_.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
 				list_manip::save_list_on_exit = true;
 				edit_window.close();
-				this->searchbar.caption("%all");
+				searchbar_.caption("%all");
 			}
 			else {
 				edit_window.popup.clear();
@@ -176,9 +176,9 @@ namespace gui {
 		});
 		edit_window.show();
 		edit_window.wait_for_this();
-		this->searchbar.caption("");
+		searchbar_.caption("");
 		this->enabled(true);
-		nana::API::focus_window(this->searchbar);
+		nana::API::focus_window(searchbar_);
 	}
 
 	void market_gui::remove_item() {
@@ -186,94 +186,94 @@ namespace gui {
 		nana::msgbox remove_window(*this, "Confirmation", nana::msgbox::yes_no);
 		remove_window << "Are you sure you want to remove the item?";
 		if(remove_window() == remove_window.pick_yes) {
-			list_of_items.erase(list_of_items.find(this->selected_result_code));
+			list_of_items.erase(list_of_items.find(selected_result_code_));
 			list_manip::save_list_on_exit = true;
 		}
-		this->searchbar.caption("");
+		searchbar_.caption("");
 		this->enabled(true);
 	}
 
 	inline void market_gui::draw_cart() {
-		if(!this->error_message.empty()) {
+		if(!error_message_.empty()) {
 			this->report_error();
 			return;
 		}
-		this->cart.clear();
+		cart_.clear();
 		for(const auto & a : cart::item_cart) {
-			this->cart.at(0).append({
+			cart_.at(0).append({
 				a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 				});
 		}
-		this->total.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
+		total_.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
 	}
 
 	void market_gui::draw_results(bool all = false) {
 		/* This if statement below is used when we have an exact barcode match so
 		it is added automatically into the cart */
-		if(search::results.size() == 1 && search::results.front()->first == this->searchbar.caption()) {
-			this->selected_result_code = searchbar.caption();
-			cart::add_to_cart(this->selected_result_code, this->error_message);
-			this->selected_result_code = "";
-			this->selected_result = false;
+		if(search::results.size() == 1 && search::results.front()->first == searchbar_.caption()) {
+			selected_result_code_ = searchbar_.caption();
+			cart::add_to_cart(selected_result_code_, error_message_);
+			selected_result_code_ = "";
+			selected_result_ = false;
 			this->draw_cart();
-			this->searchbar.caption("");
-			this->results.clear();
+			searchbar_.caption("");
+			results_.clear();
 			return;
 		}
-		this->results.auto_draw(false);
+		results_.auto_draw(false);
 		if(all) {
-			this->searchbar.caption("");
+			searchbar_.caption("");
 			for(const auto & a : list_of_items) {
-				this->results.at(0).append({ a.first, a.second.name(), std::to_string(a.second.cost()) });
+				results_.at(0).append({ a.first, a.second.name(), std::to_string(a.second.cost()) });
 			}
 		}
 		else {
 			for(const auto & a : search::results) {
-				this->results.at(0).append({ a->first, a->second.name(), std::to_string(a->second.cost()) });
+				results_.at(0).append({ a->first, a->second.name(), std::to_string(a->second.cost()) });
 			}
 		}
-		this->results.auto_draw(true);
+		results_.auto_draw(true);
 	}
 
 	inline bool market_gui::loaded_list() {
-		return this->loaded_item_list;
+		return loaded_item_list_;
 	}
 
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
-		nana::API::focus_window(this->searchbar);
+		nana::API::focus_window(searchbar_);
 		this->caption("Market").bgcolor(nana::colors::white);
-		searchbar.tip_string("Search").multi_lines(false);
-		total.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
-		menubar.bgcolor(nana::colors::white);
+		searchbar_.tip_string("Search").multi_lines(false);
+		total_.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
+		menubar_.bgcolor(nana::colors::white);
 
 		// SETTING UP GUI WIDGETS
-		plc.div("<vertical <m weight=25><g<vertical a arrange=[7%, 3%, 90%]> <vertical b>>");
-		plc.field("a") << total << searchbar << cart;
-		plc.field("b") << results;
-		plc.field("m") << menubar;
-		plc.collocate();
+		plc_.div("<vertical <m weight=25><g<vertical a arrange=[7%, 3%, 90%]> <vertical b>>");
+		plc_.field("a") << total_ << searchbar_ << cart_;
+		plc_.field("b") << results_;
+		plc_.field("m") << menubar_;
+		plc_.collocate();
 
-		menubar.push_back("&File");
-		menubar.push_back("&Items");
-		menubar.push_back("&Help");
-		results.append_header("Barcode");
-		results.append_header("Name");
-		results.append_header("Price");
-		cart.append_header("Barcode");
-		cart.append_header("Name");
-		cart.append_header("Price");
-		cart.append_header("Amount");
+		menubar_.push_back("&File");
+		menubar_.push_back("&Items");
+		menubar_.push_back("&Help");
+		results_.append_header("Barcode");
+		results_.append_header("Name");
+		results_.append_header("Price");
+		cart_.append_header("Barcode");
+		cart_.append_header("Name");
+		cart_.append_header("Price");
+		cart_.append_header("Amount");
 
-		// MENUBAR CONFIGURATION
-		menubar.at(0).append("&Read List File", [this](const nana::menu::item_proxy & prx) {
+		// menubar_ CONFIGURATION
+		menubar_.at(0).append("&Read List File", [this](const nana::menu::item_proxy & prx) {
 			this->read_file();
 		});
-		menubar.at(0).append("&Exit", [this](const nana::menu::item_proxy & prx) {
+		menubar_.at(0).append("&Exit", [this](const nana::menu::item_proxy & prx) {
 			this->close();
 		});
-		menubar.at(1).append("&Show All Items", [this](const nana::menu::item_proxy & prx) {
+		menubar_.at(1).append("&Show All Items", [this](const nana::menu::item_proxy & prx) {
 			if(this->loaded_list()) {
-				this->results.clear();
+				results_.clear();
 				this->draw_results(true);
 			}
 			else {
@@ -281,9 +281,9 @@ namespace gui {
 				return;
 			}
 		});
-		menubar.at(1).append("&Add Item", [this](const nana::menu::item_proxy & prx) {
+		menubar_.at(1).append("&Add Item", [this](const nana::menu::item_proxy & prx) {
 			if(this->loaded_list()) {
-				this->results.clear();
+				results_.clear();
 				this->add_item();
 			}
 			else {
@@ -291,9 +291,9 @@ namespace gui {
 				return;
 			}
 		});
-		menubar.at(1).append("&Edit Item", [this](const nana::menu::item_proxy & prx) {
+		menubar_.at(1).append("&Edit Item", [this](const nana::menu::item_proxy & prx) {
 			if(this->loaded_list()) {
-				this->results.clear();
+				results_.clear();
 				this->draw_results(true);
 				this->function_to_call = function::edit;
 			}
@@ -302,9 +302,9 @@ namespace gui {
 				return;
 			}
 		});
-		menubar.at(1).append("&Remove Item", [this](const nana::menu::item_proxy & prx) {
+		menubar_.at(1).append("&Remove Item", [this](const nana::menu::item_proxy & prx) {
 			if(this->loaded_list()) {
-				this->results.clear();
+				results_.clear();
 				this->draw_results(true);
 				this->function_to_call = function::remove; 
 			}
@@ -313,7 +313,7 @@ namespace gui {
 				return;
 			}
 		});
-		menubar.at(2).append("About", [this](const nana::menu::item_proxy) {
+		menubar_.at(2).append("About", [this](const nana::menu::item_proxy) {
 			nana::msgbox a{ "About" };
 			this->enabled(false);
 			a << "This software is open-source, and currently being developed.\n©Adnan Mukaj";
@@ -326,68 +326,68 @@ namespace gui {
 			list_manip::resave();
 		});
 
-		searchbar.events().text_changed([this](const nana::arg_textbox & arg) {
-			this->results.clear();
-			this->selected_result_code.clear();
-			this->selected_item_code.clear();
-			if(searchbar.caption() == "") {
+		searchbar_.events().text_changed([this](const nana::arg_textbox & arg) {
+			results_.clear();
+			selected_result_code_.clear();
+			selected_item_code_.clear();
+			if(searchbar_.caption() == "") {
 				return;
 			}
-			else if(!this->loaded_item_list) {
-				this->error_message = "In order to make items appear you need to select a file to read items from.";
+			else if(!loaded_item_list_) {
+				error_message_ = "In order to make items appear you need to select a file to read items from.";
 				this->report_error();
-				searchbar.caption("");
+				searchbar_.caption("");
 			}
 			else {
-				search::search(searchbar.caption(), this->error_message);
-				if(!this->error_message.empty())
+				search::search(searchbar_.caption(), error_message_);
+				if(!error_message_.empty())
 					this->report_error();
 				this->draw_results();
 			}
 		});
 
-		cart.events().selected([this](const nana::arg_listbox & arg) {
-			if(!this->selected_item) {
-				this->selected_item_code = arg.item.text(0);
-				this->selected_item = true;
+		cart_.events().selected([this](const nana::arg_listbox & arg) {
+			if(!selected_item_) {
+				selected_item_code_ = arg.item.text(0);
+				selected_item_ = true;
 			}
 			else {
-				this->selected_item_code.clear();
-				this->selected_item = false;
+				selected_item_code_.clear();
+				selected_item_ = false;
 			}
 		});
 
-		cart.events().dbl_click([this](const nana::arg_mouse & arg) {
-			if(!this->selected_item_code.empty()) {
+		cart_.events().dbl_click([this](const nana::arg_mouse & arg) {
+			if(!selected_item_code_.empty()) {
 				if(arg.left_button) {
-					cart::remove_from_cart(this->selected_item_code, this->error_message);
+					cart::remove_from_cart(selected_item_code_, error_message_);
 				}
 				else {
-					cart::remove_from_cart(this->selected_item_code, this->error_message, true);
+					cart::remove_from_cart(selected_item_code_, error_message_, true);
 				}
-				this->selected_item_code.clear();
-				this->selected_item = false;
+				selected_item_code_.clear();
+				selected_item_ = false;
 				this->draw_cart();
 			}
 		});
 
-		results.events().selected([this](const nana::arg_listbox & arg) {
-			if(this->selected_result_code.empty()) {
-				this->selected_result_code = arg.item.text(0);
+		results_.events().selected([this](const nana::arg_listbox & arg) {
+			if(selected_result_code_.empty()) {
+				selected_result_code_ = arg.item.text(0);
 			}
 			else {
-				this->selected_result_code.clear();
+				selected_result_code_.clear();
 			}
 		});
 
-		results.events().dbl_click([this](const nana::arg_mouse & arg) {
-			if(!this->selected_result_code.empty()) {
-				if(!this->searchbar.caption().empty()) {
-					cart::add_to_cart(this->selected_result_code, this->error_message);
+		results_.events().dbl_click([this](const nana::arg_mouse & arg) {
+			if(!selected_result_code_.empty()) {
+				if(!searchbar_.caption().empty()) {
+					cart::add_to_cart(selected_result_code_, error_message_);
 					this->draw_cart();
-					this->selected_result_code.clear();
-					this->searchbar.caption("");
-					results.clear();
+					selected_result_code_.clear();
+					searchbar_.caption("");
+					results_.clear();
 				}
 				else {
 					switch(this->function_to_call) {
@@ -399,7 +399,7 @@ namespace gui {
 					this->function_to_call = function::none;
 				}
 			}
-			nana::API::focus_window(this->searchbar);
+			nana::API::focus_window(searchbar_);
 		});
 	}
 }
