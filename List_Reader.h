@@ -17,7 +17,7 @@ namespace list_reader {
 	static std::string file_name = "";
 	//This is the map that contains all the elements and their barcode
 	static item_list_type list_of_items;
-	void read_list(std::string & error_message, std::string & file_name = list_reader::file_name) {
+	void read_list(std::string & error_message, const std::string & file_name = list_reader::file_name) {
 		if(!std::experimental::filesystem::exists(file_name)) {
 			error_message = "No " + file_name + " file found.";
 		}
