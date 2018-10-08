@@ -1,10 +1,5 @@
-#include "GUI.h"
-#include <string>
-#include <vector>
-#include "list.h"
-
 #ifdef _WIN32
-
+#include "GUI.hpp"
 #include <Windows.h>
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
@@ -15,8 +10,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 #else
+#include "GUI.hpp"
 
-int main{
+int main() {
 	gui::market_gui mg;
 	mg.show();
 	nana::exec();

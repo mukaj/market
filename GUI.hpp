@@ -1,5 +1,5 @@
-#ifndef _GUI_H_
-#define _GUI_H_
+#ifndef _GUI_HPP_
+#define _GUI_HPP_
 
 #include "cart.h"
 #include "list.h"
@@ -32,18 +32,18 @@ namespace gui {
 			order.collocate();
 			popup.icon(popup.icon_error);
 			i_barcode.set_accept([](const wchar_t & character) {
-				return (character >= 48 && character <= 57);
+				return ((character >= 48 && character <= 57) || character == '\b');
 			});
 			i_cost.set_accept([](const wchar_t & character) {
-				return (character >= 48 && character <= 57);
+				return ((character >= 48 && character <= 57) || character == '\b');
 			});
 			cancel.events().click([this](const nana::arg_click & arg) {
 				this->close();
 			});
 		}
 		inline bool fields_empty() {
-			return !(!i_name.caption().empty() && !i_barcode.caption().empty()
-				&& !i_cost.caption().empty());
+			return (i_name.caption().empty() || i_barcode.caption().empty()
+				|| i_cost.caption().empty());
 		}
 		nana::textbox i_barcode{ *this }, i_name{ *this }, i_cost{ *this };
 		nana::place order{ *this };
@@ -80,7 +80,7 @@ namespace gui {
 		bool selected_result_ = false, selected_item_ = false, loaded_item_list_ = false;
 	};
 
-	inline void market_gui::report_error(market_gui::market_error_type err = market_gui::market_error_type::undefined) {
+	inline void market_gui::report_error(market_error_type err = market_error_type::undefined) {
 		switch(err) {
 			case market_error_type::no_list_read:
 				error_message_ = "You need to have read an item list in order to use this feature.";
@@ -101,6 +101,7 @@ namespace gui {
 				list_reader::read_list(error_message_, a.file());
 				if(!error_message_.empty())
 					this->report_error();
+				loaded_item_list_ = true;
 			}
 			catch(const pugi::xml_parse_result& parse_error) {
 				nana::msgbox error_display(*this, "Error!");
@@ -109,7 +110,6 @@ namespace gui {
 				error_display();
 			}
 		}
-		loaded_item_list_ = true;
 		this->enabled(true);
 		nana::API::focus_window(*this);
 	}
@@ -134,7 +134,7 @@ namespace gui {
 			else {
 				add_window.popup.clear();
 				add_window.popup << "Please fill out all of the fields.";
-				(add_window.popup() != add_window.popup.pick_ok);
+				add_window.popup();
 			}
 		});
 		add_window.show();
@@ -153,15 +153,14 @@ namespace gui {
 		edit_window.i_cost.caption(std::to_string(item->second.cost()));
 		edit_window.save.events().click([this, &edit_window](const nana::arg_click & arg) {
 			if(!edit_window.fields_empty()) {
-				element temp{ edit_window.i_name.caption(), std::stoi(edit_window.i_cost.caption()) };
-				list_of_items[selected_result_code_] = temp;
+				list_of_items[selected_result_code_] = element(edit_window.i_name.caption(), std::stoi(edit_window.i_cost.caption()));
 				cart_.clear();
 				cart::total = 0;
 				for(const auto & a : cart::item_cart) {
 					cart_.at(0).append({
 						a.first->first, a.first->second.name(), std::to_string(a.first->second.cost()), std::to_string(a.second)
 						});
-					cart::total += a.first->second.cost();
+					cart::total += a.first->second.cost() * a.second;
 				}
 				total_.caption("<bold blue size = 30>" + std::to_string(cart::total) + "</>");
 				list_manip::save_list_on_exit = true;
@@ -264,7 +263,7 @@ namespace gui {
 		cart_.append_header("Price");
 		cart_.append_header("Amount");
 
-		// menubar_ CONFIGURATION
+		// MENUBAR CONFIGURATION
 		menubar_.at(0).append("&Read List File", [this](const nana::menu::item_proxy & prx) {
 			this->read_file();
 		});
@@ -306,7 +305,7 @@ namespace gui {
 			if(this->loaded_list()) {
 				results_.clear();
 				this->draw_results(true);
-				this->function_to_call = function::remove; 
+				this->function_to_call = function::remove;
 			}
 			else {
 				this->report_error(market_error_type::no_list_read);

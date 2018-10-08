@@ -79,7 +79,7 @@ namespace search {
 		return true;
 	}
 
-	void search(std::string & input, std::string & error_message) {
+	void search(std::string input, std::string & error_message) {
 		bool is_barcode = check_if_barcode(input);
 		results.clear();
 		if(is_barcode) {

@@ -22,6 +22,7 @@ namespace list_reader {
 			error_message = "No " + file_name + " file found.";
 		}
 		else {
+			list_of_items.clear();
 			pugi::xml_document item_list_file; // This is the document that holds the xml tree
 			pugi::xml_parse_result parse_result = item_list_file.load_file(file_name.c_str());
 			if(!parse_result) throw parse_result;
