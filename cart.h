@@ -30,6 +30,7 @@ namespace cart {
 		total += item->second.cost();
 		item_cart.push_back(std::make_pair(item, 1)); // The 1 is the amount of the item we wish to add
 	}
+
 	inline cart_type::iterator find_item(const std::string & barcode) {
 		for(cart_type::iterator iter = item_cart.begin(); iter != item_cart.end(); ++iter) {
 			if(iter->first->first == barcode) {
@@ -38,6 +39,7 @@ namespace cart {
 		}
 		return item_cart.end();
 	}
+
 	inline void remove_from_cart(const std::string & barcode, std::string & error_message, bool all = false) {
 		cart_type::iterator iter = find_item(barcode);
 		if(iter == item_cart.end()) {
@@ -55,6 +57,7 @@ namespace cart {
 			item_cart.erase(iter);
 		}
 	}
+	
 	inline void change_quantity(const std::string & barcode, std::string & error_code,
 		const int & amount = -1) {
 		cart_type::iterator cart_item = find_item(barcode);
