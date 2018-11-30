@@ -70,8 +70,10 @@ namespace gui {
 		void draw_cart();
 		void draw_results(bool);
 		bool loaded_list();
+		void update_status(); //Sets the Status to "Ready"
+		void update_status(const std::string&);
 		nana::place plc_{ *this };
-		nana::label total_{ *this };
+		nana::label total_{ *this }, status_{ *this };
 		nana::menubar menubar_{ *this };
 		nana::textbox searchbar_{ *this };
 		nana::msgbox error_dialog_{ *this,"Error" };
@@ -94,6 +96,7 @@ namespace gui {
 
 	void gui::market_gui::read_file() {
 		this->enabled(false);
+		this->update_status("Reading File");
 		nana::filebox a(true);
 		a.add_filter("XML File", "*.xml");
 		if(a()) {
@@ -111,12 +114,14 @@ namespace gui {
 			}
 		}
 		this->enabled(true);
+		this->update_status();
 		nana::API::focus_window(*this);
 	}
 
 	void gui::market_gui::add_item() {
 		utility_window add_window{ "Add Item" };
 		this->enabled(false);
+		this->update_status("Adding Item");
 		add_window.i_barcode.editable(true);
 		add_window.save.events().click([this, &add_window](const nana::arg_click & arg) {
 			if(!add_window.fields_empty()) {
@@ -141,12 +146,14 @@ namespace gui {
 		add_window.wait_for_this();
 		searchbar_.caption("");
 		this->enabled(true);
+		this->update_status();
 		nana::API::focus_window(searchbar_);
 	}
 
 	void market_gui::edit_item() {
 		utility_window edit_window{ "Edit Item" };
 		this->enabled(false);
+		this->update_status("Editing Item");
 		auto item = list_of_items.find(selected_result_code_);
 		edit_window.i_barcode.caption(item->first);
 		edit_window.i_name.caption(item->second.name());
@@ -177,19 +184,33 @@ namespace gui {
 		edit_window.wait_for_this();
 		searchbar_.caption("");
 		this->enabled(true);
+		this->update_status();
 		nana::API::focus_window(searchbar_);
 	}
 
 	void market_gui::remove_item() {
 		this->enabled(false);
+		this->update_status("Removing Item");
 		nana::msgbox remove_window(*this, "Confirmation", nana::msgbox::yes_no);
-		remove_window << "Are you sure you want to remove the item?";
-		if(remove_window() == remove_window.pick_yes) {
-			list_of_items.erase(list_of_items.find(selected_result_code_));
-			list_manip::save_list_on_exit = true;
+		if(cart::find_item(selected_result_code_) != cart::item_cart.end()) {
+			remove_window << "This item is inside the current cart.\nAre you sure you want to remove the item?";
+			if(remove_window() == remove_window.pick_yes) {
+				cart::remove_from_cart(selected_result_code_, error_message_, true);
+				this->draw_cart();
+				list_of_items.erase(list_of_items.find(selected_result_code_));
+				list_manip::save_list_on_exit = true;
+			}
+		}
+		else {
+			remove_window << "Are you sure you want to remove the item?";
+			if(remove_window() == remove_window.pick_yes) {
+				list_of_items.erase(list_of_items.find(selected_result_code_));
+				list_manip::save_list_on_exit = true;
+			}
 		}
 		searchbar_.caption("");
 		this->enabled(true);
+		this->update_status();
 	}
 
 	inline void market_gui::draw_cart() {
@@ -238,18 +259,35 @@ namespace gui {
 		return loaded_item_list_;
 	}
 
+	inline void gui::market_gui::update_status() {
+		status_.caption("Status: Ready");
+	}
+
+	inline void gui::market_gui::update_status(const std::string& text) {
+		status_.caption("Status: " + text);
+	}
+
 	market_gui::market_gui() : nana::form(nana::API::make_center(1280, 720)) {
 		nana::API::focus_window(searchbar_);
 		this->caption("Market").bgcolor(nana::colors::white);
 		searchbar_.tip_string("Search").multi_lines(false);
 		total_.format(true).caption("<bold blue size=30>0</>").bgcolor(nana::colors::white_smoke);
+		status_.caption("Status: Ready").bgcolor(nana::colors::white_smoke);
 		menubar_.bgcolor(nana::colors::white);
 
 		// SETTING UP GUI WIDGETS
-		plc_.div("<vertical <m weight=25><g<vertical a arrange=[7%, 3%, 90%]> <vertical b>>");
+		plc_.div("<vertical\
+					<m weight=25>\
+					<\
+						<vertical a arrange=[7%, 3%, 90%]>\
+						<vertical b>\
+					>\
+					<s weight=16>\
+				>");
 		plc_.field("a") << total_ << searchbar_ << cart_;
 		plc_.field("b") << results_;
 		plc_.field("m") << menubar_;
+		plc_.field("s") << status_;
 		plc_.collocate();
 
 		menubar_.push_back("&File");
@@ -402,4 +440,4 @@ namespace gui {
 		});
 	}
 }
-#endif // !_GUI_H_
+#endif // !_GUI_HPP_
